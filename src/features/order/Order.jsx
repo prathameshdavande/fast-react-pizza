@@ -6,11 +6,23 @@ import {
   formatDate,
 } from "../../utils/helpers";
 import { getOrder } from "../../services/apiRestaurant";
-import { useLoaderData } from "react-router-dom";
+import { useFetcher, useLoaderData } from "react-router-dom";
+import OrderItem from "./OrderItem";
+import { useEffect } from "react";
+import UpdateOrder from "./UpdateOrder";
 
 function Order() {
   const order = useLoaderData();
   // Everyone can search for all orders, so for privacy reasons we're gonna gonna exclude names or address, these are only for the restaurant staff
+  const fetcher = useFetcher();
+
+  useEffect(
+    function () {
+      if (!fetcher.data && fetcher.state === "idle") fetcher.load("/menu");
+    },
+    [fetcher],
+  );
+
   const {
     id,
     status,
@@ -23,30 +35,61 @@ function Order() {
   const deliveryIn = calcMinutesLeft(estimatedDelivery);
 
   return (
-    <div>
-      <div>
-        <h2>Status</h2>
+    <div className="py-6 px-4 space-y-8">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-xl font-semibold"> Order #{id} Status</h2>
 
-        <div>
-          {priority && <span>Priority</span>}
-          <span>{status} order</span>
+        <div className="space-x-2">
+          {priority && (
+            <span className="bg-red-500 px-3 py-1 text-sm rounded-full text-red-50 font-semibold uppercase tracking-wide">
+              Priority
+            </span>
+          )}
+          <span className="bg-green-500 px-3 py-1 text-sm rounded-full text-green-50 font-semibold uppercase tracking-wide">
+            {status === "preparing" ? `${status} order..` : `order ${status}`}
+          </span>
         </div>
       </div>
 
-      <div>
-        <p>
+      <div className="flex items-center justify-between flex-wrap gap-2 bg-stone-200 px-6 py-5 ">
+        <p className="font-medium">
           {deliveryIn >= 0
             ? `Only ${calcMinutesLeft(estimatedDelivery)} minutes left 😃`
             : "Order should have arrived"}
         </p>
-        <p>(Estimated delivery: {formatDate(estimatedDelivery)})</p>
+        <p className="text-sm text-stone-500">
+          (Estimated delivery: {formatDate(estimatedDelivery)})
+        </p>
       </div>
 
-      <div>
-        <p>Price pizza: {formatCurrency(orderPrice)}</p>
-        {priority && <p>Price priority: {formatCurrency(priorityPrice)}</p>}
-        <p>To pay on delivery: {formatCurrency(orderPrice + priorityPrice)}</p>
+      <ul className="divide-y divide-stone-200 border-t border-b">
+        {cart.map((item) => (
+          <OrderItem
+            item={item}
+            key={item.pizzaId}
+            isLoadingIngredients={fetcher.state === "loading"}
+            ingredients={
+              fetcher?.data?.find((el) => el.id === item.pizzaId)
+                ?.ingredients ?? []
+            }
+          />
+        ))}
+      </ul>
+
+      <div className="bg-stone-200 px-6 py-5 space-y-2">
+        <p className="text-sm font-medium text-stone-600">
+          Price pizza: {formatCurrency(orderPrice)}
+        </p>
+        {priority && (
+          <p className="text-sm font-medium text-stone-600">
+            Price priority: {formatCurrency(priorityPrice)}
+          </p>
+        )}
+        <p className="font-bold">
+          To pay on delivery: {formatCurrency(orderPrice + priorityPrice)}
+        </p>
       </div>
+      {!priority && <UpdateOrder />}
     </div>
   );
 }
